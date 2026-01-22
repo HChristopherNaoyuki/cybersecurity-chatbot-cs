@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Media;
 using System.Text;
@@ -8,17 +7,20 @@ using System.Threading;
 namespace cybersecurity_chatbot_cs
 {
     /// <summary>
-    /// Handles all console I/O, formatting, colors, typing effect,
-    /// audio greeting and limited chat history display.
+    /// Handles all console-based user interaction:
+    ///   - startup banner
+    ///   - audio greeting
+    ///   - name input with validation
+    ///   - welcome message
+    ///   - colored prompts & responses
+    ///   - typing animation
+    ///   - error messages
     ///
-    /// This version implements "disappearing old messages":
-    ///   - Keeps a fixed-size buffer of recent chat lines
-    ///   - Redraws compact view **only after user has entered a new message**
-    ///     and the bot has finished answering that turn
+    /// No disappearing chat / history buffer / screen clear logic is included here.
     /// </summary>
     public class UserInterface
     {
-        // Large static ASCII banner (shown once at startup)
+        // Static ASCII banner shown at startup
         private static readonly string[] CyberSecurityBanner = new string[]
         {
             @" ________      ___    ___ ________  _______   ________  ________  _______      ",
@@ -41,11 +43,8 @@ namespace cybersecurity_chatbot_cs
             @"                                               \|___|/                         "
         };
 
-        private readonly List<string> recentChatLines = new List<string>();
-        private const int MAX_VISIBLE_LINES = 32; // adjust to taste (20–40 common)
-
         /// <summary>
-        /// Displays the large static banner once at startup
+        /// Displays the large static ASCII banner at application startup.
         /// </summary>
         public void DisplayAsciiArt()
         {
@@ -58,12 +57,16 @@ namespace cybersecurity_chatbot_cs
             Console.WriteLine();
         }
 
+        /// <summary>
+        /// Plays welcome.wav synchronously if the file exists.
+        /// </summary>
         public void PlayVoiceGreeting()
         {
             string path = GetResourcePath("Audio", "welcome.wav");
+
             if (!File.Exists(path))
             {
-                DisplayError("Audio file not found: " + path);
+                DisplayError("Welcome audio file not found: " + path);
                 return;
             }
 
@@ -81,12 +84,16 @@ namespace cybersecurity_chatbot_cs
             }
         }
 
+        /// <summary>
+        /// Prompts user for name with basic validation (letters + spaces only).
+        /// Falls back to "User" after max attempts.
+        /// </summary>
         public string GetUserName()
         {
-            const int MAX_TRIES = 4;
-            int tries = 0;
+            const int MAX_ATTEMPTS = 4;
+            int attempt = 0;
 
-            while (tries < MAX_TRIES)
+            while (attempt < MAX_ATTEMPTS)
             {
                 Console.ForegroundColor = ConsoleColor.Cyan;
                 Console.Write("Enter your name: ");
@@ -97,7 +104,7 @@ namespace cybersecurity_chatbot_cs
                 if (string.IsNullOrWhiteSpace(input))
                 {
                     DisplayError("Name cannot be empty.");
-                    tries++;
+                    attempt++;
                     continue;
                 }
 
@@ -111,10 +118,13 @@ namespace cybersecurity_chatbot_cs
                     }
                 }
 
-                if (valid) return input;
+                if (valid)
+                {
+                    return input;
+                }
 
                 DisplayError("Only letters and spaces allowed.");
-                tries++;
+                attempt++;
             }
 
             Console.ForegroundColor = ConsoleColor.Yellow;
@@ -123,18 +133,22 @@ namespace cybersecurity_chatbot_cs
             return "User";
         }
 
+        /// <summary>
+        /// Shows framed welcome message with user's name.
+        /// </summary>
         public void DisplayWelcomeMessage(string name)
         {
             Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine(new string('═', 70));
-            Console.WriteLine($"  Hello {name}, welcome to the Cybersecurity Awareness Bot");
-            Console.WriteLine(new string('═', 70));
+            Console.WriteLine("═══════════════════════════════════════════════════════════════");
+            Console.WriteLine($"  Hello, {name}! Welcome to the Cybersecurity Awareness Bot.");
+            Console.WriteLine("  I'm here to help you stay safe online.");
+            Console.WriteLine("═══════════════════════════════════════════════════════════════");
             Console.ResetColor();
             Console.WriteLine();
         }
 
         /// <summary>
-        /// Read user input → add to history → **do NOT** redraw yet
+        /// Reads one line of user input with colored username prefix.
         /// </summary>
         public string ReadUserInput(string username)
         {
@@ -142,73 +156,24 @@ namespace cybersecurity_chatbot_cs
             Console.Write($"{username}: ");
             Console.ResetColor();
 
-            string input = Console.ReadLine() ?? "";
-
-            if (!string.IsNullOrWhiteSpace(input))
-            {
-                AddToHistory($"{username}: {input}");
-            }
-
-            return input;
+            return Console.ReadLine() ?? "";
         }
 
         /// <summary>
-        /// Show bot response with typing → add to history → **then** redraw compact view
+        /// Shows chatbot response with typing animation.
         /// </summary>
         public void ShowResponse(string text)
         {
             Console.ForegroundColor = ConsoleColor.White;
             Console.Write("Bot: ");
             Console.ForegroundColor = ConsoleColor.Magenta;
-            TypeText(text, 22);
+            TypeText(text.Trim(), 22);
             Console.ResetColor();
-
-            AddToHistory($"Bot: {text}");
-
-            // Redraw only after bot has answered → fulfills "after user prompt"
-            RefreshChatView();
         }
 
         /// <summary>
-        /// Add system / help / error messages without triggering redraw
+        /// Prints text character-by-character with delay (typing effect).
         /// </summary>
-        public void AddSystemMessage(string message)
-        {
-            AddToHistory($"System: {message}");
-            // no redraw here → only after user+bot turn
-        }
-
-        private void AddToHistory(string line)
-        {
-            recentChatLines.Add(line);
-
-            // Optional: keep memory usage bounded (rarely needed in console)
-            while (recentChatLines.Count > MAX_VISIBLE_LINES * 2)
-            {
-                recentChatLines.RemoveAt(0);
-            }
-        }
-
-        private void RefreshChatView()
-        {
-            Console.Clear();
-
-            // Banner again (can be removed if unwanted after startup)
-            DisplayAsciiArt();
-
-            // Show only the most recent lines that fit
-            int startIndex = Math.Max(0, recentChatLines.Count - MAX_VISIBLE_LINES);
-
-            Console.ForegroundColor = ConsoleColor.Gray;
-            for (int i = startIndex; i < recentChatLines.Count; i++)
-            {
-                Console.WriteLine(recentChatLines[i]);
-            }
-            Console.ResetColor();
-
-            Console.WriteLine(); // empty line before next prompt
-        }
-
         public void TypeText(string text, int delayMs = 30)
         {
             if (string.IsNullOrEmpty(text)) return;
@@ -221,6 +186,9 @@ namespace cybersecurity_chatbot_cs
             Console.WriteLine();
         }
 
+        /// <summary>
+        /// Displays error message in red.
+        /// </summary>
         public void DisplayError(string message)
         {
             Console.ForegroundColor = ConsoleColor.Red;
@@ -230,7 +198,8 @@ namespace cybersecurity_chatbot_cs
 
         private string GetResourcePath(string subfolder, string fileName)
         {
-            return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, subfolder, fileName);
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            return Path.Combine(baseDir, subfolder, fileName);
         }
     }
 }

@@ -3,8 +3,8 @@
 namespace cybersecurity_chatbot_cs
 {
     /// <summary>
-    /// Central orchestrator of the cybersecurity awareness chatbot.
-    /// Coordinates startup sequence, user identification, and main conversation loop.
+    /// Main orchestrator of the cybersecurity awareness chatbot application.
+    /// Coordinates subsystems: UI, knowledge base, memory, conversation logic.
     /// </summary>
     public class ChatBot
     {
@@ -27,11 +27,11 @@ namespace cybersecurity_chatbot_cs
             {
                 ExecuteStartupSequence();
                 IdentifyUser();
-                RunMainConversationLoop();
+                ExecuteMainConversation();
             }
             catch (Exception ex)
             {
-                ui.DisplayError("Fatal application error: " + ex.Message);
+                ui.DisplayError($"Fatal error: {ex.Message}");
                 Environment.Exit(1);
             }
         }
@@ -39,7 +39,7 @@ namespace cybersecurity_chatbot_cs
         private void ExecuteStartupSequence()
         {
             ui.PlayVoiceGreeting();
-            ui.DisplayAsciiArt();           // shows the large static banner once
+            ui.DisplayAsciiArt();           // shows the static banner once
         }
 
         private void IdentifyUser()
@@ -47,13 +47,11 @@ namespace cybersecurity_chatbot_cs
             string name = ui.GetUserName();
             memory.UserName = name;
             ui.DisplayWelcomeMessage(name);
-
-            // Optional: show a small initial message after welcome
-            ui.AddChatMessage("System", "Type 'help' to see available topics or 'exit' to quit.");
         }
 
-        private void RunMainConversationLoop()
+        private void ExecuteMainConversation()
         {
+            ui.TypeText("Type 'help' for topics or 'exit' to quit", 30);
             conversation.StartChat();
         }
     }
