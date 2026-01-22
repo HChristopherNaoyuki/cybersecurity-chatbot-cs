@@ -5,16 +5,14 @@ using System.Linq;
 namespace cybersecurity_chatbot_cs
 {
     /// <summary>
-    /// Core logic for managing the conversation flow.
+    /// Manages the conversation flow and processes user input.
     /// 
     /// Responsibilities:
-    ///   - Read user input via UserInterface
-    ///   - Detect built-in commands (exit, help, name recall, FAQ query)
-    ///   - Route natural language questions to keyword-based response system
-    ///   - Coordinate memory updates and contextual response generation
-    ///   - Integrate with limited-history redraw mechanism:
-    ///       → only after a full user prompt + bot response cycle
-    ///         does the UI perform a screen refresh / drop old messages
+    ///   - Read user input through UserInterface
+    ///   - Recognize and handle special commands (exit, help, name recall, frequent questions)
+    ///   - Process natural language queries using keyword extraction and knowledge base
+    ///   - Update memory and generate contextual responses when appropriate
+    ///   - Display help and system messages using existing UI methods
     /// </summary>
     public class ConversationManager
     {
@@ -23,22 +21,15 @@ namespace cybersecurity_chatbot_cs
         private readonly UserInterface ui;
 
         // Command matching sets (case-insensitive)
-        private static readonly HashSet<string> ExitTriggers = new HashSet<string>(
+        private static readonly HashSet<string> ExitCommands = new HashSet<string>(
             StringComparer.OrdinalIgnoreCase)
-            {
-                "exit", "quit", "bye", "goodbye", "end", "stop"
-            };
+            { "exit", "quit", "bye", "goodbye", "end", "stop" };
 
-        private static readonly HashSet<string> HelpTriggers = new HashSet<string>(
+        private static readonly HashSet<string> HelpCommands = new HashSet<string>(
             StringComparer.OrdinalIgnoreCase)
-            {
-                "help", "commands", "options", "topics", "?", "menu"
-            };
+            { "help", "commands", "options", "topics", "?", "menu" };
 
-        public ConversationManager(
-            KnowledgeBase knowledgeBase,
-            MemoryManager memory,
-            UserInterface ui)
+        public ConversationManager(KnowledgeBase knowledgeBase, MemoryManager memory, UserInterface ui)
         {
             this.knowledgeBase = knowledgeBase ?? throw new ArgumentNullException(nameof(knowledgeBase));
             this.memory = memory ?? throw new ArgumentNullException(nameof(memory));
@@ -46,8 +37,8 @@ namespace cybersecurity_chatbot_cs
         }
 
         /// <summary>
-        /// Main conversation loop.
-        /// Runs until the user explicitly exits.
+        /// Main loop that keeps the conversation going until the user exits.
+        /// Catches exceptions per turn so one bad input doesn't crash the app.
         /// </summary>
         public void StartChat()
         {
@@ -55,54 +46,55 @@ namespace cybersecurity_chatbot_cs
             {
                 try
                 {
-                    ProcessOneTurn();
+                    ProcessInput();
                 }
                 catch (Exception ex)
                 {
                     ui.DisplayError($"Conversation error: {ex.Message}");
-                    // continue instead of crashing or recursive restart
+                    // continue instead of recursive restart or crash
                 }
             }
         }
 
-        private void ProcessOneTurn()
+        private void ProcessInput()
         {
-            // 1. Get raw user input (UI adds user line to history but does NOT redraw yet)
-            string rawInput = ui.ReadUserInput(memory.UserName).Trim();
+            string input = ui.ReadUserInput(memory.UserName).Trim();
 
-            if (string.IsNullOrWhiteSpace(rawInput))
+            if (string.IsNullOrWhiteSpace(input))
             {
-                ui.AddSystemMessage("Please type something.");
+                ui.DisplayError("Please type something.");
                 return;
             }
 
-            // 2. Handle special / meta commands first
-            if (ExitTriggers.Contains(rawInput))
+            // ────────────── Special / meta commands ──────────────
+
+            if (ExitCommands.Contains(input))
             {
-                ui.AddSystemMessage("Goodbye! Stay safe online.");
+                ui.TypeText("Stay safe online! Goodbye.", 30);
                 Environment.Exit(0);
             }
 
-            if (HelpTriggers.Contains(rawInput))
+            if (HelpCommands.Contains(input))
             {
-                ShowHelpScreen();
+                DisplayHelp();
                 return;
             }
 
-            if (IsNameRecallRequest(rawInput))
+            if (IsNameRecallRequest(input))
             {
-                ui.AddSystemMessage($"Your name is {memory.UserName}.");
+                ui.TypeText($"Your name is {memory.UserName}.", 25);
                 return;
             }
 
-            if (IsFrequentQuestionRequest(rawInput))
+            if (IsFrequentQuestionRequest(input))
             {
-                ui.AddSystemMessage(memory.GetMostFrequentTopicMessage());
+                ui.TypeText(memory.GetMostFrequentTopicMessage(), 25);
                 return;
             }
 
-            // 3. Normal question → process keywords & generate answer(s)
-            ProcessNaturalLanguageQuery(rawInput);
+            // ────────────── Normal question processing ──────────────
+
+            ProcessNaturalLanguage(input);
         }
 
         private bool IsNameRecallRequest(string input)
@@ -110,8 +102,7 @@ namespace cybersecurity_chatbot_cs
             string lower = input.ToLowerInvariant();
             return lower.Contains("what is my name") ||
                    lower.Contains("who am i") ||
-                   lower.Contains("my name is") ||
-                   lower.Contains("tell me my name");
+                   lower.Contains("my name");
         }
 
         private bool IsFrequentQuestionRequest(string input)
@@ -124,65 +115,56 @@ namespace cybersecurity_chatbot_cs
                    lower.Contains("what do i ask most");
         }
 
-        private void ShowHelpScreen()
+        private void DisplayHelp()
         {
-            ui.AddSystemMessage("I can help with the following topics:");
-            ui.AddSystemMessage("  • passwords          • two-factor authentication (2FA)");
-            ui.AddSystemMessage("  • phishing           • VPNs");
-            ui.AddSystemMessage("  • Wi-Fi security     • email safety");
-            ui.AddSystemMessage("  • online privacy");
-            ui.AddSystemMessage("");
-            ui.AddSystemMessage("Just type any of these words (or related questions) to learn more.");
-            ui.AddSystemMessage("Type 'exit' or 'quit' when you want to leave.");
+            ui.TypeText("I can help with these topics:", 20);
+            Console.ForegroundColor = ConsoleColor.Magenta;
+
+            ui.TypeText("• passwords", 20);
+            ui.TypeText("• 2FA (two-factor authentication)", 20);
+            ui.TypeText("• phishing", 20);
+            ui.TypeText("• VPN", 20);
+            ui.TypeText("• Wi-Fi security", 20);
+            ui.TypeText("• email safety", 20);
+            ui.TypeText("• online privacy", 20);
+
+            Console.ResetColor();
+            ui.TypeText("Just type any of these words or related questions.", 25);
         }
 
-        private void ProcessNaturalLanguageQuery(string input)
+        private void ProcessNaturalLanguage(string input)
         {
-            // Basic sentiment detection (affects tone of response)
             string sentiment = SimpleSentimentAnalyzer.GetSentiment(input);
-
-            // Extract meaningful keywords (stop-words removed)
             List<string> keywords = SimpleKeywordExtractor.ExtractMeaningfulWords(input, knowledgeBase);
 
-            bool foundAnyResponse = false;
+            bool anyResponseGiven = false;
 
             foreach (string keyword in keywords.Distinct())
             {
-                // Remember topic usage for frequency tracking
                 memory.RememberKeyword(keyword);
 
-                string baseResponse = knowledgeBase.GetResponse(keyword);
-                if (string.IsNullOrEmpty(baseResponse))
-                {
-                    continue;
-                }
+                string response = knowledgeBase.GetResponse(keyword);
+                if (string.IsNullOrEmpty(response)) continue;
 
-                foundAnyResponse = true;
+                anyResponseGiven = true;
 
-                // Add contextual prefix if this topic has been discussed before
                 int count = memory.GetKeywordCount(keyword);
-                string finalResponse = baseResponse;
                 if (count > 1)
                 {
-                    finalResponse = memory.AddContextualPrefix(keyword, baseResponse, count);
+                    response = memory.AddContextualPrefix(keyword, response, count);
                 }
 
-                // Add sentiment-aware opening if applicable
                 if (sentiment != "neutral")
                 {
-                    finalResponse = SimpleSentimentAnalyzer.GetSentimentPrefix(sentiment) + finalResponse;
+                    response = SimpleSentimentAnalyzer.GetSentimentPrefix(sentiment) + response;
                 }
 
-                // Show answer → UI will add it to history AND trigger redraw after typing
-                ui.ShowResponse(finalResponse);
+                ui.ShowResponse(response);
             }
 
-            // Fallback when nothing matched
-            if (!foundAnyResponse)
+            if (!anyResponseGiven)
             {
-                ui.ShowResponse(
-                    "I'm not sure I understood that topic yet. " +
-                    "Try 'help' to see what I can explain.");
+                ui.ShowResponse("I'm not sure about that topic yet. Try 'help' for options.");
             }
         }
     }
