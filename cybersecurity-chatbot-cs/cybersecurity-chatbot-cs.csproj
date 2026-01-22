@@ -126,6 +126,8 @@
   <ItemGroup>
     <None Include="App.config" />
     <None Include="Documentation\Documentation.md" />
+    <None Include="Documentation\Presentation\PROG6221-PRESENTATION-V1.pptx" />
+    <None Include="Documentation\Presentation\PROG6221-PRESENTATION-V2.pptx" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup />
