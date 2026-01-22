@@ -4,18 +4,26 @@ using System.Linq;
 
 namespace cybersecurity_chatbot_cs
 {
+    /// <summary>
+    /// Core conversation logic handler.
+    /// Processes user input, detects commands, extracts keywords,
+    /// manages sentiment and responds using the knowledge base.
+    /// 
+    /// This version integrates with the limited-history redraw mechanism
+    /// provided by UserInterface (AddChatMessage + ShowResponse).
+    /// </summary>
     public class ConversationManager
     {
         private readonly KnowledgeBase knowledgeBase;
         private readonly MemoryManager memory;
         private readonly UserInterface ui;
 
-        // Command matchers
-        private static readonly HashSet<string> ExitCommands = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { "exit", "quit", "bye", "goodbye" };
+        // Simple command sets (case-insensitive)
+        private static readonly HashSet<string> ExitCommands = new HashSet<string>(
+            StringComparer.OrdinalIgnoreCase) { "exit", "quit", "bye", "goodbye" };
 
-        private static readonly HashSet<string> HelpCommands = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { "help", "options", "topics", "?" };
+        private static readonly HashSet<string> HelpCommands = new HashSet<string>(
+            StringComparer.OrdinalIgnoreCase) { "help", "options", "topics", "?" };
 
         public ConversationManager(KnowledgeBase knowledgeBase, MemoryManager memory, UserInterface ui)
         {
@@ -30,17 +38,17 @@ namespace cybersecurity_chatbot_cs
             {
                 try
                 {
-                    ProcessInput();
+                    ProcessOneInputCycle();
                 }
                 catch (Exception ex)
                 {
-                    ui.DisplayError($"Conversation error: {ex.Message}");
-                    // continue instead of recursive restart
+                    ui.DisplayError("Conversation error: " + ex.Message);
+                    // continue loop instead of crashing or recursing
                 }
             }
         }
 
-        private void ProcessInput()
+        private void ProcessOneInputCycle()
         {
             string input = ui.ReadUserInput(memory.UserName).Trim();
 
@@ -50,9 +58,11 @@ namespace cybersecurity_chatbot_cs
                 return;
             }
 
+            // ────────────── Special commands ──────────────
+
             if (ExitCommands.Contains(input))
             {
-                ui.TypeText("Stay safe online. Goodbye!", 30);
+                ui.AddChatMessage("Bot", "Stay safe online. Goodbye!");
                 Environment.Exit(0);
             }
 
@@ -64,17 +74,18 @@ namespace cybersecurity_chatbot_cs
 
             if (IsNameQuery(input))
             {
-                ui.TypeText($"Your name is {memory.UserName}.", 25);
+                ui.AddChatMessage("Bot", $"Your name is {memory.UserName}.");
                 return;
             }
 
             if (IsFrequentQuestionQuery(input))
             {
-                ui.TypeText(memory.GetMostFrequentTopicMessage(), 25);
+                ui.AddChatMessage("Bot", memory.GetMostFrequentTopicMessage());
                 return;
             }
 
-            ProcessNaturalLanguageQuery(input);
+            // ────────────── Normal question processing ──────────────
+            ProcessNaturalLanguage(input);
         }
 
         private bool IsNameQuery(string input)
@@ -96,33 +107,35 @@ namespace cybersecurity_chatbot_cs
 
         private void ShowHelp()
         {
-            ui.TypeText("Available topics:", 20);
-            Console.ForegroundColor = ConsoleColor.Magenta;
-
-            foreach (string topic in knowledgeBase.GetAllTopics())
-            {
-                Console.WriteLine($"  • {topic}");
-            }
-
-            Console.ResetColor();
-            Console.WriteLine();
+            ui.AddChatMessage("Bot", "Available topics:");
+            ui.AddChatMessage("Bot", "• passwords");
+            ui.AddChatMessage("Bot", "• 2FA / two-factor authentication");
+            ui.AddChatMessage("Bot", "• phishing");
+            ui.AddChatMessage("Bot", "• VPN");
+            ui.AddChatMessage("Bot", "• Wi-Fi security");
+            ui.AddChatMessage("Bot", "• email safety");
+            ui.AddChatMessage("Bot", "• online privacy");
+            ui.AddChatMessage("Bot", "Type any of these words to learn more.");
         }
 
-        private void ProcessNaturalLanguageQuery(string input)
+        private void ProcessNaturalLanguage(string input)
         {
             string sentiment = SimpleSentimentAnalyzer.GetSentiment(input);
             var keywords = SimpleKeywordExtractor.ExtractMeaningfulWords(input, knowledgeBase);
 
-            bool anyResponseGiven = false;
+            bool anyResponse = false;
 
             foreach (string keyword in keywords.Distinct())
             {
                 memory.RememberKeyword(keyword);
 
                 string response = knowledgeBase.GetResponse(keyword);
-                if (string.IsNullOrEmpty(response)) continue;
+                if (string.IsNullOrEmpty(response))
+                {
+                    continue;
+                }
 
-                anyResponseGiven = true;
+                anyResponse = true;
 
                 int count = memory.GetKeywordCount(keyword);
                 if (count > 1)
@@ -132,13 +145,13 @@ namespace cybersecurity_chatbot_cs
 
                 if (sentiment != "neutral")
                 {
-                    response = $"{SimpleSentimentAnalyzer.GetSentimentPrefix(sentiment)}{response}";
+                    response = SimpleSentimentAnalyzer.GetSentimentPrefix(sentiment) + response;
                 }
 
                 ui.ShowResponse(response);
             }
 
-            if (!anyResponseGiven)
+            if (!anyResponse)
             {
                 ui.ShowResponse("Sorry, I don't have information about that topic yet. Try 'help'.");
             }

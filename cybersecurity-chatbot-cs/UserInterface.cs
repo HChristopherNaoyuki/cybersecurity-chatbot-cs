@@ -9,14 +9,14 @@ namespace cybersecurity_chatbot_cs
     /// <summary>
     /// Central class for all user interface operations in the Cybersecurity Awareness Chatbot.
     /// Handles console output formatting, colored text, typing animation,
-    /// user name input validation, audio greeting playback, and static ASCII banner display.
+    /// user name input validation, audio greeting playback, and chat history display.
     ///
-    /// This version does NOT depend on System.Drawing or any image processing.
-    /// Fully compatible with .NET Framework 4.7.2 and C# 7.0.
+    /// This version maintains a limited visible chat history to prevent endless scrolling.
+    /// Compatible with .NET Framework 4.7.2 and C# 7.0.
     /// </summary>
     public class UserInterface
     {
-        // Large static ASCII banner (displayed via DisplayAsciiArt method)
+        // Large static ASCII banner (shown once at startup)
         private static readonly string[] CyberSecurityBanner = new string[]
         {
             @" ________      ___    ___ ________  _______   ________  ________  _______      ",
@@ -39,10 +39,16 @@ namespace cybersecurity_chatbot_cs
             @"                                               \|___|/                         "
         };
 
+        private readonly ChatDisplayBuffer chatBuffer;
+
+        public UserInterface()
+        {
+            // 35 is usually safe for most console windows; can be adjusted
+            chatBuffer = new ChatDisplayBuffer(35);
+        }
+
         /// <summary>
-        /// Displays the large static "CYBERSECURITY" ASCII banner.
-        /// This method replaces the former image-based ASCII art method
-        /// so that calls from ChatBot.cs remain valid.
+        /// Displays the large static "CYBERSECURITY" ASCII banner once at startup.
         /// </summary>
         public void DisplayAsciiArt()
         {
@@ -57,7 +63,6 @@ namespace cybersecurity_chatbot_cs
 
         /// <summary>
         /// Plays welcome.wav from the Audio subfolder if the file exists.
-        /// Gracefully skips if file is missing or playback fails.
         /// </summary>
         public void PlayVoiceGreeting()
         {
@@ -84,8 +89,7 @@ namespace cybersecurity_chatbot_cs
         }
 
         /// <summary>
-        /// Collects and validates the user's name.
-        /// Allowed characters: letters and spaces only.
+        /// Collects and validates the user's name (letters + spaces only).
         /// Falls back to "User" after 4 failed attempts.
         /// </summary>
         public string GetUserName()
@@ -135,7 +139,7 @@ namespace cybersecurity_chatbot_cs
         }
 
         /// <summary>
-        /// Prints a framed welcome message containing the user's name.
+        /// Prints a framed welcome message with the user's name.
         /// </summary>
         public void DisplayWelcomeMessage(string name)
         {
@@ -149,20 +153,62 @@ namespace cybersecurity_chatbot_cs
         }
 
         /// <summary>
-        /// Reads one line of user input, prefixed with the username in yellow.
+        /// Adds a message to the visible chat history and redraws the chat area.
+        /// </summary>
+        public void AddChatMessage(string sender, string message)
+        {
+            string line = $"{sender}: {message}";
+            chatBuffer.Add(line);
+            RedrawChatArea();
+        }
+
+        /// <summary>
+        /// Redraws the entire visible chat history (last N lines).
+        /// Clears screen and reprints banner + chat lines + prompt line.
+        /// </summary>
+        public void RedrawChatArea()
+        {
+            Console.Clear();
+
+            // Re-show banner at top (optional – comment out if not wanted after startup)
+            DisplayAsciiArt();
+
+            // Show recent chat history
+            Console.ForegroundColor = ConsoleColor.Gray;
+            foreach (string line in chatBuffer.GetLines())
+            {
+                Console.WriteLine(line);
+            }
+            Console.ResetColor();
+
+            // Leave one empty line before prompt
+            Console.WriteLine();
+        }
+
+        /// <summary>
+        /// Reads one line of user input with username prefix.
+        /// Redraws chat area after input is received.
         /// </summary>
         public string ReadUserInput(string username)
         {
+            // Show prompt on fresh line
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.Write($"{username}: ");
             Console.ResetColor();
 
-            return Console.ReadLine() ?? "";
+            string input = Console.ReadLine() ?? "";
+
+            // After user presses enter → redraw whole chat with new message
+            if (!string.IsNullOrWhiteSpace(input))
+            {
+                AddChatMessage(username, input);
+            }
+
+            return input;
         }
 
         /// <summary>
-        /// Displays a chatbot response with typing animation effect.
-        /// Prefixes the message with "Bot: " in white + magenta text.
+        /// Shows chatbot response with typing animation, then redraws chat area.
         /// </summary>
         public void ShowResponse(string text)
         {
@@ -171,10 +217,13 @@ namespace cybersecurity_chatbot_cs
             Console.ForegroundColor = ConsoleColor.Magenta;
             TypeText(text.Trim(), 22);
             Console.ResetColor();
+
+            // After response is fully shown → redraw complete chat view
+            RedrawChatArea();
         }
 
         /// <summary>
-        /// Prints text character by character with configurable delay (simulates typing).
+        /// Prints text character by character with delay (typing simulation).
         /// </summary>
         public void TypeText(string text, int delayMs = 30)
         {
@@ -192,7 +241,7 @@ namespace cybersecurity_chatbot_cs
         }
 
         /// <summary>
-        /// Displays error message in red color.
+        /// Displays error message in red.
         /// </summary>
         public void DisplayError(string message)
         {

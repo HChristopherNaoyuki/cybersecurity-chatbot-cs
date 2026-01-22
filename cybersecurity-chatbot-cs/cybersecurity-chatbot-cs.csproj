@@ -47,6 +47,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ChatBot.cs" />
+    <Compile Include="ChatDisplayBuffer.cs" />
     <Compile Include="ConversationManager.cs" />
     <Compile Include="KnowledgeBase.cs" />
     <Compile Include="MemoryManager.cs" />
