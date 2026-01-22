@@ -1,31 +1,62 @@
 ﻿using System;
-using System.Drawing;
 using System.IO;
 using System.Media;
-using System.Security.Policy;
 using System.Text;
 using System.Threading;
 
 namespace cybersecurity_chatbot_cs
 {
     /// <summary>
-    /// Central class responsible for all user interface interactions:
-    /// - Console output formatting & typing animation
-    /// - User input collection with validation
-    /// - Audio greeting playback
-    /// - ASCII art generation from image file
-    /// 
-    /// Uses classic using blocks and try-finally (C# 7.0 compatible).
-    /// Depends on System.Drawing reference (not NuGet package in .NET Framework).
+    /// Central class for all user interface operations in the Cybersecurity Awareness Chatbot.
+    /// Handles console output formatting, colored text, typing animation,
+    /// user name input validation, audio greeting playback, and static ASCII banner display.
+    ///
+    /// This version does NOT depend on System.Drawing or any image processing.
+    /// Compatible with .NET Framework 4.7.2 and C# 7.0.
     /// </summary>
     public class UserInterface
     {
-        private static readonly char[] AsciiDensityChars =
-            { '#', '8', '&', 'o', ':', '*', '.', ' ' };
+        // Large static ASCII banner displayed at startup
+        private static readonly string[] CyberSecurityBanner = new string[]
+        {
+            " ________      ___    ___ ________  _______   ________  ________  _______      ",
+            "|\\   ____\\    |\\  \\  /  /|\\   __  \\|\\  ___ \\ |\\   __  \\|\\   ____|\\|  ___ \\     ",
+            "\\ \\  \\___|    \\ \\  \\/  / | \\  \\|\\ /\\ \\   __/|\\ \\  \\|\\  \\ \\  \\___|\\ \\   __/|    ",
+            " \\ \\  \\        \\ \\    / / \\ \\   __  \\ \\  \\_|/_\\ \\   _  _\\ \\_____  \\ \\  \\_|/__  ",
+            "  \\ \\  \\____    \\/  /  /   \\ \\  \\|\\  \\ \\  \\_|\\ \\ \\  \\\\  \\|____|\\  \\ \\  \\_|\\ \\ ",
+            "   \\ \\_______\\__/  / /      \\ \\_______\\ \\_______\\ \\__\\\\ _\\ ____\\_\  \\ \\_______\\",
+            "    \\|_______|\\___/ /        \\|_______|\\|_______|\\|__|\\|__|\\_________\\|_______|",
+            "             \\|___|/                                      \\|_________|         ",
+            "                                                                               ",
+            "                                                                               ",
+            " ________  ___  ___  ________  ___  _________    ___    ___                    ",
+            "|\\   ____\\|\\  \\|\\  \\|\\   __  \\|\\  \\|\\___   ___\\ |\\  \\  /  /|                   ",
+            "\\ \\  \\___|\\ \\  \\\\\\  \\ \\  \\|\\  \\ \\  \\|___ \\  \\_| \\ \\  \\/  / /                   ",
+            " \\ \\  \\    \\ \\  \\\\\\  \\ \\   _  _\\ \\  \\   \\ \\  \\   \\ \\    / /                    ",
+            "  \\ \\  \\____\\ \\  \\\\\\  \\ \\  \\\\  \\\\ \\  \\   \\ \\  \\   \\/  /  /                     ",
+            "   \\ \\_______\\ \\_______\\ \\__\\\\ _\\\\ \\__\\   \\ \\__\\__/  / /                       ",
+            "    \\|_______|\\|_______|\\|__|\\|__|\\|__|    \\|__|\\___/ /                        ",
+            "                                               \\|___|/                         "
+        };
 
         /// <summary>
-        /// Plays welcome.wav if the file exists in the Audio subfolder.
-        /// Uses SoundPlayer (synchronous playback).
+        /// Displays the large static "CYBERSECURITY" ASCII banner at application startup.
+        /// Uses DarkCyan color for better visibility.
+        /// </summary>
+        public void DisplayAsciiBanner()
+        {
+            Console.ForegroundColor = ConsoleColor.DarkCyan;
+            foreach (string line in CyberSecurityBanner)
+            {
+                Console.WriteLine(line);
+            }
+            Console.ResetColor();
+            Console.WriteLine();
+        }
+
+        /// <summary>
+        /// Attempts to play welcome.wav from the Audio subfolder.
+        /// Gracefully skips if file is missing or playback fails.
         /// </summary>
         public void PlayVoiceGreeting()
         {
@@ -47,104 +78,77 @@ namespace cybersecurity_chatbot_cs
             }
             catch (Exception ex)
             {
-                DisplayError("Failed to play audio greeting: " + ex.Message);
+                DisplayError("Cannot play welcome sound: " + ex.Message);
             }
         }
 
         /// <summary>
-        /// Renders cybersecurity.png as ASCII art if the file exists.
-        /// Uses 100×50 character resolution by default.
-        /// </summary>
-        public void DisplayAsciiArt()
-        {
-            string path = GetResourcePath("Images", "cybersecurity.png");
-
-            if (!File.Exists(path))
-            {
-                DisplayError("Image file for ASCII art not found: " + path);
-                return;
-            }
-
-            try
-            {
-                string art = ConvertImageToAscii(path, 100, 50);
-                Console.ForegroundColor = ConsoleColor.DarkGreen;
-                Console.WriteLine(art);
-                Console.ResetColor();
-            }
-            catch (Exception ex)
-            {
-                DisplayError("Could not convert image to ASCII: " + ex.Message);
-            }
-        }
-
-        /// <summary>
-        /// Collects user's name with basic validation (letters + spaces only).
-        /// After 4 failed attempts falls back to "User".
+        /// Collects and validates the user's name.
+        /// Allowed characters: letters and spaces only.
+        /// Falls back to "User" after 4 failed attempts.
         /// </summary>
         public string GetUserName()
         {
             const int MAX_ATTEMPTS = 4;
-            int attempts = 0;
+            int attempt = 0;
 
-            while (attempts < MAX_ATTEMPTS)
+            while (attempt < MAX_ATTEMPTS)
             {
                 Console.ForegroundColor = ConsoleColor.Cyan;
                 Console.Write("Enter your name: ");
                 Console.ResetColor();
 
-                string name = Console.ReadLine()?.Trim();
+                string name = Console.ReadLine()?.Trim() ?? "";
 
                 if (string.IsNullOrWhiteSpace(name))
                 {
                     DisplayError("Name cannot be empty.");
-                    attempts++;
+                    attempt++;
                     continue;
                 }
 
-                bool isValid = true;
+                bool valid = true;
                 foreach (char c in name)
                 {
                     if (!char.IsLetter(c) && !char.IsWhiteSpace(c))
                     {
-                        isValid = false;
+                        valid = false;
                         break;
                     }
                 }
 
-                if (!isValid)
+                if (valid)
                 {
-                    DisplayError("Name can only contain letters and spaces.");
-                    attempts++;
-                    continue;
+                    return name;
                 }
 
-                return name;
+                DisplayError("Only letters and spaces are allowed.");
+                attempt++;
             }
 
             Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("Too many invalid attempts → using default name 'User'");
+            Console.WriteLine("Too many invalid attempts. Using default name 'User'.");
             Console.ResetColor();
 
             return "User";
         }
 
         /// <summary>
-        /// Prints a framed welcome message with the provided name.
+        /// Prints a framed welcome message containing the user's name.
         /// </summary>
         public void DisplayWelcomeMessage(string name)
         {
             Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine("═══════════════════════════════════════════════════════════════");
-            Console.WriteLine($"  Hello, {name}! Welcome to the Cybersecurity Awareness Bot.");
-            Console.WriteLine("  I'm here to help you stay safer online.");
-            Console.WriteLine("═══════════════════════════════════════════════════════════════");
+            Console.WriteLine("═══════════════════════════════════════════════════════════════════════");
+            Console.WriteLine($"  Hello, {name}! Welcome to the Cybersecurity Awareness Bot");
+            Console.WriteLine("  I'm here to help you stay safe online.");
+            Console.WriteLine("═══════════════════════════════════════════════════════════════════════");
             Console.ResetColor();
             Console.WriteLine();
         }
 
         /// <summary>
-        /// Reads one line of user input, prefixed with username in yellow.
+        /// Reads one line of user input, prefixed with the username in yellow.
         /// </summary>
         public string ReadUserInput(string username)
         {
@@ -152,23 +156,24 @@ namespace cybersecurity_chatbot_cs
             Console.Write($"{username}: ");
             Console.ResetColor();
 
-            return Console.ReadLine() ?? string.Empty;
+            return Console.ReadLine() ?? "";
         }
 
         /// <summary>
-        /// Displays chatbot response with "Bot: " prefix and magenta typing effect.
+        /// Displays a chatbot response with typing animation effect.
+        /// Prefixes the message with "Bot: " in white + magenta text.
         /// </summary>
         public void ShowResponse(string text)
         {
             Console.ForegroundColor = ConsoleColor.White;
             Console.Write("Bot: ");
             Console.ForegroundColor = ConsoleColor.Magenta;
-            TypeText(text, 25);
+            TypeText(text.Trim(), 22);
             Console.ResetColor();
         }
 
         /// <summary>
-        /// Simulates typing by printing each character with delay.
+        /// Prints text character by character with configurable delay (simulates typing).
         /// </summary>
         public void TypeText(string text, int delayMs = 30)
         {
@@ -186,69 +191,23 @@ namespace cybersecurity_chatbot_cs
         }
 
         /// <summary>
-        /// Prints error message in red.
+        /// Displays error message in red color.
         /// </summary>
         public void DisplayError(string message)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"Error: {message}");
+            Console.WriteLine("Error: " + message);
             Console.ResetColor();
         }
 
         // ────────────────────────────────────────────────
-        // Private helper methods
+        // Private helpers
         // ────────────────────────────────────────────────
 
         private string GetResourcePath(string subfolder, string fileName)
         {
             string baseDir = AppDomain.CurrentDomain.BaseDirectory;
             return Path.Combine(baseDir, subfolder, fileName);
-        }
-
-        private string ConvertImageToAscii(string imagePath, int targetWidth, int targetHeight)
-        {
-            Bitmap original = null;
-            Bitmap resized = null;
-
-            try
-            {
-                original = new Bitmap(imagePath);
-                resized = new Bitmap(original, new Size(targetWidth, targetHeight));
-
-                StringBuilder sb = new StringBuilder();
-
-                for (int y = 0; y < resized.Height; y++)
-                {
-                    for (int x = 0; x < resized.Width; x++)
-                    {
-                        Color pixel = resized.GetPixel(x, y);
-
-                        // Standard luminance (BT.601 coefficients)
-                        int gray = (int)(
-                            0.299 * pixel.R +
-                            0.587 * pixel.G +
-                            0.114 * pixel.B);
-
-                        gray = Math.Max(0, Math.Min(255, gray));
-
-                        int index = gray * (AsciiDensityChars.Length - 1) / 255;
-                        sb.Append(AsciiDensityChars[index]);
-                    }
-                    sb.AppendLine();
-                }
-
-                return sb.ToString();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[ASCII conversion failed] {ex.Message}");
-                return string.Format("[Image could not be loaded: {0}]", Path.GetFileName(imagePath));
-            }
-            finally
-            {
-                if (resized != null) resized.Dispose();
-                if (original != null) original.Dispose();
-            }
         }
     }
 }
