@@ -1,15 +1,23 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace cybersecurity_chatbot_cs
 {
-    internal class Program
+    class Program
     {
         static void Main(string[] args)
         {
+            try
+            {
+                var bot = new ChatBot();
+                bot.Run();
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Critical failure: {ex.Message}");
+                Console.ResetColor();
+                Environment.Exit(1);
+            }
         }
     }
 }

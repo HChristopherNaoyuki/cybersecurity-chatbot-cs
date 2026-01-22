@@ -49,6 +49,8 @@
     <Compile Include="MemoryManager.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SimpleKeywordExtractor.cs" />
+    <Compile Include="SimpleSentimentAnalyzer.cs" />
     <Compile Include="UserInterface.cs" />
   </ItemGroup>
   <ItemGroup>
