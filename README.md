@@ -188,10 +188,9 @@ For larger changes, please open an issue first to discuss the direction.
 
 ## License
 
-MIT License
-
 This project is provided as-is for educational and personal use.
-See the Disclaimer section below.
+
+See the *Disclaimer* section below.
 
 ## Disclaimer
 
