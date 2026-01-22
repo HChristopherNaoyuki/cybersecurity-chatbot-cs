@@ -168,12 +168,14 @@ Preferred workflow:
 Please open an issue first for larger changes.
 
 Repository:  
+```
 https://github.com/HChristopherNaoyuki/cybersecurity-chatbot-cs.git
+```
 
 ## License
 
 This project is provided as-is for educational and personal use.
-See the Disclaimer section below.
+See the *Disclaimer* section below.
 
 **Disclaimer**
 
