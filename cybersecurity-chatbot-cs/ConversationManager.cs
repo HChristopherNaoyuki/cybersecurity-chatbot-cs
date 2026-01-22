@@ -5,12 +5,16 @@ using System.Linq;
 namespace cybersecurity_chatbot_cs
 {
     /// <summary>
-    /// Core conversation logic handler.
-    /// Processes user input, detects commands, extracts keywords,
-    /// manages sentiment and responds using the knowledge base.
+    /// Core logic for managing the conversation flow.
     /// 
-    /// This version integrates with the limited-history redraw mechanism
-    /// provided by UserInterface (AddChatMessage + ShowResponse).
+    /// Responsibilities:
+    ///   - Read user input via UserInterface
+    ///   - Detect built-in commands (exit, help, name recall, FAQ query)
+    ///   - Route natural language questions to keyword-based response system
+    ///   - Coordinate memory updates and contextual response generation
+    ///   - Integrate with limited-history redraw mechanism:
+    ///       → only after a full user prompt + bot response cycle
+    ///         does the UI perform a screen refresh / drop old messages
     /// </summary>
     public class ConversationManager
     {
@@ -18,142 +22,167 @@ namespace cybersecurity_chatbot_cs
         private readonly MemoryManager memory;
         private readonly UserInterface ui;
 
-        // Simple command sets (case-insensitive)
-        private static readonly HashSet<string> ExitCommands = new HashSet<string>(
-            StringComparer.OrdinalIgnoreCase) { "exit", "quit", "bye", "goodbye" };
+        // Command matching sets (case-insensitive)
+        private static readonly HashSet<string> ExitTriggers = new HashSet<string>(
+            StringComparer.OrdinalIgnoreCase)
+            {
+                "exit", "quit", "bye", "goodbye", "end", "stop"
+            };
 
-        private static readonly HashSet<string> HelpCommands = new HashSet<string>(
-            StringComparer.OrdinalIgnoreCase) { "help", "options", "topics", "?" };
+        private static readonly HashSet<string> HelpTriggers = new HashSet<string>(
+            StringComparer.OrdinalIgnoreCase)
+            {
+                "help", "commands", "options", "topics", "?", "menu"
+            };
 
-        public ConversationManager(KnowledgeBase knowledgeBase, MemoryManager memory, UserInterface ui)
+        public ConversationManager(
+            KnowledgeBase knowledgeBase,
+            MemoryManager memory,
+            UserInterface ui)
         {
             this.knowledgeBase = knowledgeBase ?? throw new ArgumentNullException(nameof(knowledgeBase));
             this.memory = memory ?? throw new ArgumentNullException(nameof(memory));
             this.ui = ui ?? throw new ArgumentNullException(nameof(ui));
         }
 
+        /// <summary>
+        /// Main conversation loop.
+        /// Runs until the user explicitly exits.
+        /// </summary>
         public void StartChat()
         {
             while (true)
             {
                 try
                 {
-                    ProcessOneInputCycle();
+                    ProcessOneTurn();
                 }
                 catch (Exception ex)
                 {
-                    ui.DisplayError("Conversation error: " + ex.Message);
-                    // continue loop instead of crashing or recursing
+                    ui.DisplayError($"Conversation error: {ex.Message}");
+                    // continue instead of crashing or recursive restart
                 }
             }
         }
 
-        private void ProcessOneInputCycle()
+        private void ProcessOneTurn()
         {
-            string input = ui.ReadUserInput(memory.UserName).Trim();
+            // 1. Get raw user input (UI adds user line to history but does NOT redraw yet)
+            string rawInput = ui.ReadUserInput(memory.UserName).Trim();
 
-            if (string.IsNullOrWhiteSpace(input))
+            if (string.IsNullOrWhiteSpace(rawInput))
             {
-                ui.DisplayError("Please type something.");
+                ui.AddSystemMessage("Please type something.");
                 return;
             }
 
-            // ────────────── Special commands ──────────────
-
-            if (ExitCommands.Contains(input))
+            // 2. Handle special / meta commands first
+            if (ExitTriggers.Contains(rawInput))
             {
-                ui.AddChatMessage("Bot", "Stay safe online. Goodbye!");
+                ui.AddSystemMessage("Goodbye! Stay safe online.");
                 Environment.Exit(0);
             }
 
-            if (HelpCommands.Contains(input))
+            if (HelpTriggers.Contains(rawInput))
             {
-                ShowHelp();
+                ShowHelpScreen();
                 return;
             }
 
-            if (IsNameQuery(input))
+            if (IsNameRecallRequest(rawInput))
             {
-                ui.AddChatMessage("Bot", $"Your name is {memory.UserName}.");
+                ui.AddSystemMessage($"Your name is {memory.UserName}.");
                 return;
             }
 
-            if (IsFrequentQuestionQuery(input))
+            if (IsFrequentQuestionRequest(rawInput))
             {
-                ui.AddChatMessage("Bot", memory.GetMostFrequentTopicMessage());
+                ui.AddSystemMessage(memory.GetMostFrequentTopicMessage());
                 return;
             }
 
-            // ────────────── Normal question processing ──────────────
-            ProcessNaturalLanguage(input);
+            // 3. Normal question → process keywords & generate answer(s)
+            ProcessNaturalLanguageQuery(rawInput);
         }
 
-        private bool IsNameQuery(string input)
+        private bool IsNameRecallRequest(string input)
         {
             string lower = input.ToLowerInvariant();
             return lower.Contains("what is my name") ||
                    lower.Contains("who am i") ||
-                   lower.Contains("my name");
+                   lower.Contains("my name is") ||
+                   lower.Contains("tell me my name");
         }
 
-        private bool IsFrequentQuestionQuery(string input)
+        private bool IsFrequentQuestionRequest(string input)
         {
             string lower = input.ToLowerInvariant();
             return lower.Contains("frequent") ||
                    lower.Contains("most asked") ||
+                   lower.Contains("most common") ||
                    lower.Contains("faq") ||
-                   lower.Contains("common question");
+                   lower.Contains("what do i ask most");
         }
 
-        private void ShowHelp()
+        private void ShowHelpScreen()
         {
-            ui.AddChatMessage("Bot", "Available topics:");
-            ui.AddChatMessage("Bot", "• passwords");
-            ui.AddChatMessage("Bot", "• 2FA / two-factor authentication");
-            ui.AddChatMessage("Bot", "• phishing");
-            ui.AddChatMessage("Bot", "• VPN");
-            ui.AddChatMessage("Bot", "• Wi-Fi security");
-            ui.AddChatMessage("Bot", "• email safety");
-            ui.AddChatMessage("Bot", "• online privacy");
-            ui.AddChatMessage("Bot", "Type any of these words to learn more.");
+            ui.AddSystemMessage("I can help with the following topics:");
+            ui.AddSystemMessage("  • passwords          • two-factor authentication (2FA)");
+            ui.AddSystemMessage("  • phishing           • VPNs");
+            ui.AddSystemMessage("  • Wi-Fi security     • email safety");
+            ui.AddSystemMessage("  • online privacy");
+            ui.AddSystemMessage("");
+            ui.AddSystemMessage("Just type any of these words (or related questions) to learn more.");
+            ui.AddSystemMessage("Type 'exit' or 'quit' when you want to leave.");
         }
 
-        private void ProcessNaturalLanguage(string input)
+        private void ProcessNaturalLanguageQuery(string input)
         {
+            // Basic sentiment detection (affects tone of response)
             string sentiment = SimpleSentimentAnalyzer.GetSentiment(input);
-            var keywords = SimpleKeywordExtractor.ExtractMeaningfulWords(input, knowledgeBase);
 
-            bool anyResponse = false;
+            // Extract meaningful keywords (stop-words removed)
+            List<string> keywords = SimpleKeywordExtractor.ExtractMeaningfulWords(input, knowledgeBase);
+
+            bool foundAnyResponse = false;
 
             foreach (string keyword in keywords.Distinct())
             {
+                // Remember topic usage for frequency tracking
                 memory.RememberKeyword(keyword);
 
-                string response = knowledgeBase.GetResponse(keyword);
-                if (string.IsNullOrEmpty(response))
+                string baseResponse = knowledgeBase.GetResponse(keyword);
+                if (string.IsNullOrEmpty(baseResponse))
                 {
                     continue;
                 }
 
-                anyResponse = true;
+                foundAnyResponse = true;
 
+                // Add contextual prefix if this topic has been discussed before
                 int count = memory.GetKeywordCount(keyword);
+                string finalResponse = baseResponse;
                 if (count > 1)
                 {
-                    response = memory.AddContextualPrefix(keyword, response, count);
+                    finalResponse = memory.AddContextualPrefix(keyword, baseResponse, count);
                 }
 
+                // Add sentiment-aware opening if applicable
                 if (sentiment != "neutral")
                 {
-                    response = SimpleSentimentAnalyzer.GetSentimentPrefix(sentiment) + response;
+                    finalResponse = SimpleSentimentAnalyzer.GetSentimentPrefix(sentiment) + finalResponse;
                 }
 
-                ui.ShowResponse(response);
+                // Show answer → UI will add it to history AND trigger redraw after typing
+                ui.ShowResponse(finalResponse);
             }
 
-            if (!anyResponse)
+            // Fallback when nothing matched
+            if (!foundAnyResponse)
             {
-                ui.ShowResponse("Sorry, I don't have information about that topic yet. Try 'help'.");
+                ui.ShowResponse(
+                    "I'm not sure I understood that topic yet. " +
+                    "Try 'help' to see what I can explain.");
             }
         }
     }
