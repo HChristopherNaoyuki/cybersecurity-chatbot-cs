@@ -12,38 +12,39 @@ namespace cybersecurity_chatbot_cs
     /// user name input validation, audio greeting playback, and static ASCII banner display.
     ///
     /// This version does NOT depend on System.Drawing or any image processing.
-    /// Compatible with .NET Framework 4.7.2 and C# 7.0.
+    /// Fully compatible with .NET Framework 4.7.2 and C# 7.0.
     /// </summary>
     public class UserInterface
     {
-        // Large static ASCII banner displayed at startup
+        // Large static ASCII banner (displayed via DisplayAsciiArt method)
         private static readonly string[] CyberSecurityBanner = new string[]
         {
-            " ________      ___    ___ ________  _______   ________  ________  _______      ",
-            "|\\   ____\\    |\\  \\  /  /|\\   __  \\|\\  ___ \\ |\\   __  \\|\\   ____|\\|  ___ \\     ",
-            "\\ \\  \\___|    \\ \\  \\/  / | \\  \\|\\ /\\ \\   __/|\\ \\  \\|\\  \\ \\  \\___|\\ \\   __/|    ",
-            " \\ \\  \\        \\ \\    / / \\ \\   __  \\ \\  \\_|/_\\ \\   _  _\\ \\_____  \\ \\  \\_|/__  ",
-            "  \\ \\  \\____    \\/  /  /   \\ \\  \\|\\  \\ \\  \\_|\\ \\ \\  \\\\  \\|____|\\  \\ \\  \\_|\\ \\ ",
-            "   \\ \\_______\\__/  / /      \\ \\_______\\ \\_______\\ \\__\\\\ _\\ ____\\_\  \\ \\_______\\",
-            "    \\|_______|\\___/ /        \\|_______|\\|_______|\\|__|\\|__|\\_________\\|_______|",
-            "             \\|___|/                                      \\|_________|         ",
-            "                                                                               ",
-            "                                                                               ",
-            " ________  ___  ___  ________  ___  _________    ___    ___                    ",
-            "|\\   ____\\|\\  \\|\\  \\|\\   __  \\|\\  \\|\\___   ___\\ |\\  \\  /  /|                   ",
-            "\\ \\  \\___|\\ \\  \\\\\\  \\ \\  \\|\\  \\ \\  \\|___ \\  \\_| \\ \\  \\/  / /                   ",
-            " \\ \\  \\    \\ \\  \\\\\\  \\ \\   _  _\\ \\  \\   \\ \\  \\   \\ \\    / /                    ",
-            "  \\ \\  \\____\\ \\  \\\\\\  \\ \\  \\\\  \\\\ \\  \\   \\ \\  \\   \\/  /  /                     ",
-            "   \\ \\_______\\ \\_______\\ \\__\\\\ _\\\\ \\__\\   \\ \\__\\__/  / /                       ",
-            "    \\|_______|\\|_______|\\|__|\\|__|\\|__|    \\|__|\\___/ /                        ",
-            "                                               \\|___|/                         "
+            @" ________      ___    ___ ________  _______   ________  ________  _______      ",
+            @"|\   ____\    |\  \  /  /|\   __  \|\  ___ \ |\   __  \|\   ____\|\  ___ \     ",
+            @"\ \  \___|    \ \  \/  / | \  \|\ /\ \   __/|\ \  \|\  \ \  \___|\ \   __/|    ",
+            @" \ \  \        \ \    / / \ \   __  \ \  \_|/_\ \   _  _\ \_____  \ \  \_|/__  ",
+            @"  \ \  \____    \/  /  /   \ \  \|\  \ \  \_|\ \ \  \\  \\|____|\  \ \  \_|\ \ ",
+            @"   \ \_______\__/  / /      \ \_______\ \_______\ \__\\ _\ ____\_\  \ \_______\",
+            @"    \|_______|\___/ /        \|_______|\|_______|\|__|\|__|\_________\|_______|",
+            @"             \|___|/                                      \|_________|         ",
+            @"                                                                               ",
+            @"                                                                               ",
+            @" ________  ___  ___  ________  ___  _________    ___    ___                    ",
+            @"|\   ____\|\  \|\  \|\   __  \|\  \|\___   ___\ |\  \  /  /|                   ",
+            @"\ \  \___|\ \  \\\  \ \  \|\  \ \  \|___ \  \_| \ \  \/  / /                   ",
+            @" \ \  \    \ \  \\\  \ \   _  _\ \  \   \ \  \   \ \    / /                    ",
+            @"  \ \  \____\ \  \\\  \ \  \\  \\ \  \   \ \  \   \/  /  /                     ",
+            @"   \ \_______\ \_______\ \__\\ _\\ \__\   \ \__\__/  / /                       ",
+            @"    \|_______|\|_______|\|__|\|__|\|__|    \|__|\___/ /                        ",
+            @"                                               \|___|/                         "
         };
 
         /// <summary>
-        /// Displays the large static "CYBERSECURITY" ASCII banner at application startup.
-        /// Uses DarkCyan color for better visibility.
+        /// Displays the large static "CYBERSECURITY" ASCII banner.
+        /// This method replaces the former image-based ASCII art method
+        /// so that calls from ChatBot.cs remain valid.
         /// </summary>
-        public void DisplayAsciiBanner()
+        public void DisplayAsciiArt()
         {
             Console.ForegroundColor = ConsoleColor.DarkCyan;
             foreach (string line in CyberSecurityBanner)
@@ -55,7 +56,7 @@ namespace cybersecurity_chatbot_cs
         }
 
         /// <summary>
-        /// Attempts to play welcome.wav from the Audio subfolder.
+        /// Plays welcome.wav from the Audio subfolder if the file exists.
         /// Gracefully skips if file is missing or playback fails.
         /// </summary>
         public void PlayVoiceGreeting()
