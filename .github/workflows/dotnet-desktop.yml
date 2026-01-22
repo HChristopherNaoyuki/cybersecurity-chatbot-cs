@@ -1,73 +1,37 @@
-# Cybersecurity Chatbot CI Pipeline
-# This workflow builds and tests the .NET application on Windows
-name: .NET Core Build and Test
+name: Cybersecurity Chatbot Test Pipeline
 
-# Trigger workflow on pushes and pull requests to main/master branches
 on:
   push:
     branches: [ "main", "master" ]
   pull_request:
     branches: [ "main", "master" ]
 
+env:
+  DOTNET_VERSION: '8.0.x'
+
 jobs:
-  # Single job that handles building and testing
-  build-and-test:
-    # Windows runner required for .NET applications
+  test:
+    name: Run Tests
     runs-on: windows-latest
+    timeout-minutes: 5
 
     steps:
     # ----------------------------------
-    # 1. Checkout the repository code
+    # 1. Checkout code
     # ----------------------------------
-    - name: Checkout code
-      uses: actions/checkout@v4  # Official GitHub Action for code checkout
-      # Uses the latest stable version (v4)
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
     # ----------------------------------
-    # 2. Setup .NET 8 SDK
+    # 2. Setup .NET
     # ----------------------------------
     - name: Setup .NET SDK
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '8.0.x'  # Installs latest patch of .NET 8
-        # Note: Using x in version gets latest patch updates
+        dotnet-version: ${{ env.DOTNET_VERSION }}
 
     # ----------------------------------
-    # 3. Restore NuGet dependencies
-    # ----------------------------------
-    - name: Restore dependencies
-      run: dotnet restore
-      # Restores all NuGet packages for the solution
-      # Runs against all projects in the solution by default
-
-    # ----------------------------------
-    # 4. Build the solution in Release mode
-    # ----------------------------------
-    - name: Build solution
-      run: dotnet build --configuration Release --no-restore
-      # Flags:
-      # --configuration Release: Production-optimized build
-      # --no-restore: Skip redundant package restoration
-      # Outputs binaries to bin/Release/net8.0 directory
-
-    # ----------------------------------
-    # 5. Run unit tests
+    # 3. Run tests (automatically restores and builds)
     # ----------------------------------
     - name: Run tests
-      run: dotnet test --configuration Release --no-build --verbosity normal
-      # Flags:
-      # --no-build: Uses existing build output
-      # --verbosity normal: Shows standard test output
-      # Executes all unit tests in the solution
-
-    # ----------------------------------
-    # 6. Archive build outputs (optional)
-    # ----------------------------------
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-output
-        path: |
-          **/bin/Release/net8.0/**
-          !**/bin/Release/net8.0/*.pdb  # Exclude debug symbols
-        retention-days: 3  # Short retention period to save storage
+      run: dotnet test --no-restore
