@@ -7,20 +7,22 @@ using System.Threading;
 namespace cybersecurity_chatbot_cs
 {
     /// <summary>
-    /// Handles all console-based user interaction:
-    ///   - startup banner
-    ///   - audio greeting
-    ///   - name input with validation
-    ///   - welcome message
-    ///   - colored prompts & responses
-    ///   - typing animation
-    ///   - error messages
-    ///
-    /// No disappearing chat / history buffer / screen clear logic is included here.
+    /// Handles all console-based user interface operations.
+    /// 
+    /// Responsibilities:
+    ///   - Display startup banner
+    ///   - Play welcome audio
+    ///   - Collect and validate user name
+    ///   - Show welcome message
+    ///   - Read user input with colored prompt
+    ///   - Display chatbot responses with typing animation
+    ///   - Show error messages in red
+    /// 
+    /// No chat history buffer or automatic screen clearing is implemented here.
     /// </summary>
     public class UserInterface
     {
-        // Static ASCII banner shown at startup
+        // Large static ASCII banner (shown once at startup)
         private static readonly string[] CyberSecurityBanner = new string[]
         {
             @" ________      ___    ___ ________  _______   ________  ________  _______      ",
@@ -44,7 +46,7 @@ namespace cybersecurity_chatbot_cs
         };
 
         /// <summary>
-        /// Displays the large static ASCII banner at application startup.
+        /// Displays the large static "CYBERSECURITY" ASCII banner once at startup.
         /// </summary>
         public void DisplayAsciiArt()
         {
@@ -58,7 +60,7 @@ namespace cybersecurity_chatbot_cs
         }
 
         /// <summary>
-        /// Plays welcome.wav synchronously if the file exists.
+        /// Plays welcome.wav synchronously if the file exists in the Audio folder.
         /// </summary>
         public void PlayVoiceGreeting()
         {
@@ -85,8 +87,8 @@ namespace cybersecurity_chatbot_cs
         }
 
         /// <summary>
-        /// Prompts user for name with basic validation (letters + spaces only).
-        /// Falls back to "User" after max attempts.
+        /// Collects user name with basic validation (letters and spaces only).
+        /// Falls back to "User" after 4 failed attempts.
         /// </summary>
         public string GetUserName()
         {
@@ -119,9 +121,7 @@ namespace cybersecurity_chatbot_cs
                 }
 
                 if (valid)
-                {
                     return input;
-                }
 
                 DisplayError("Only letters and spaces allowed.");
                 attempt++;
@@ -134,7 +134,7 @@ namespace cybersecurity_chatbot_cs
         }
 
         /// <summary>
-        /// Shows framed welcome message with user's name.
+        /// Shows framed welcome message with the user's name.
         /// </summary>
         public void DisplayWelcomeMessage(string name)
         {
@@ -148,7 +148,7 @@ namespace cybersecurity_chatbot_cs
         }
 
         /// <summary>
-        /// Reads one line of user input with colored username prefix.
+        /// Reads one line of user input, prefixed with colored username.
         /// </summary>
         public string ReadUserInput(string username)
         {
@@ -160,23 +160,24 @@ namespace cybersecurity_chatbot_cs
         }
 
         /// <summary>
-        /// Shows chatbot response with typing animation.
+        /// Displays chatbot response with typing animation effect.
         /// </summary>
         public void ShowResponse(string text)
         {
             Console.ForegroundColor = ConsoleColor.White;
-            Console.Write("Bot: ");
+            Console.Write("ChatBot: ");
             Console.ForegroundColor = ConsoleColor.Magenta;
             TypeText(text.Trim(), 22);
             Console.ResetColor();
         }
 
         /// <summary>
-        /// Prints text character-by-character with delay (typing effect).
+        /// Prints text character by character with configurable delay (simulates typing).
         /// </summary>
         public void TypeText(string text, int delayMs = 30)
         {
-            if (string.IsNullOrEmpty(text)) return;
+            if (string.IsNullOrEmpty(text))
+                return;
 
             foreach (char c in text)
             {
@@ -187,7 +188,7 @@ namespace cybersecurity_chatbot_cs
         }
 
         /// <summary>
-        /// Displays error message in red.
+        /// Displays error message in red color.
         /// </summary>
         public void DisplayError(string message)
         {

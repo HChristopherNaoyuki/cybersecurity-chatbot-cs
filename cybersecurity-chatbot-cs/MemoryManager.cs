@@ -6,14 +6,20 @@ using System.Linq;
 namespace cybersecurity_chatbot_cs
 {
     /// <summary>
-    /// Manages persistent lightweight memory for the chatbot.
-    /// Mainly tracks how many times each keyword/topic has been discussed.
-    /// Saves data to a simple text file between application runs.
-    /// Thread-safe for the dictionary operations.
+    /// Manages persistent lightweight user memory for the chatbot.
+    /// 
+    /// Main responsibilities:
+    ///   - Track keyword/topic frequency across sessions
+    ///   - Persist data to a simple text file (user_keywords.txt)
+    ///   - Provide contextual response prefixes when topics are repeated
+    ///   - Answer name recall and most-frequent-topic questions
+    /// 
+    /// Storage format (per line): keyword:count
+    /// Thread-safe dictionary updates
     /// </summary>
     public class MemoryManager
     {
-        private const string STORAGE_FILE = "user_keywords.txt";
+        private const string StorageFileName = "user_keywords.txt";
 
         private string userName;
         private readonly Dictionary<string, int> keywordCounts
@@ -21,177 +27,154 @@ namespace cybersecurity_chatbot_cs
 
         /// <summary>
         /// Gets or sets the current user's name.
-        /// Returns "User" if no name has been set.
+        /// Returns "User" if no name has been set yet.
         /// </summary>
         public string UserName
         {
-            get { return userName ?? "User"; }
+            get => userName ?? "User";
             set
             {
                 if (string.IsNullOrWhiteSpace(value))
-                {
                     throw new ArgumentException("Username cannot be empty or whitespace.");
-                }
                 userName = value.Trim();
             }
         }
 
         public MemoryManager()
         {
-            Load();
+            LoadFromFile();
         }
 
         /// <summary>
-        /// Records that a keyword was mentioned → increases its counter.
-        /// Persists change to disk.
+        /// Records that a keyword was mentioned → increments its count.
+        /// Persists change immediately to disk.
         /// </summary>
         public void RememberKeyword(string keyword)
         {
             if (string.IsNullOrWhiteSpace(keyword))
-            {
                 return;
-            }
 
             string norm = Normalize(keyword);
 
             lock (keywordCounts)
             {
-                int count = 0;
-                keywordCounts.TryGetValue(norm, out count);
+                keywordCounts.TryGetValue(norm, out int count);
                 keywordCounts[norm] = count + 1;
             }
 
-            Save();
+            SaveToFile();
         }
 
         /// <summary>
-        /// Returns how many times this keyword was remembered.
-        /// Returns 0 if never seen before.
+        /// Returns how many times this keyword/topic was mentioned.
+        /// Returns 0 if never seen.
         /// </summary>
         public int GetKeywordCount(string keyword)
         {
             if (string.IsNullOrWhiteSpace(keyword))
-            {
                 return 0;
-            }
 
             string norm = Normalize(keyword);
-            int count = 0;
-            keywordCounts.TryGetValue(norm, out count);
+            keywordCounts.TryGetValue(norm, out int count);
             return count;
         }
 
         /// <summary>
-        /// Builds a human-readable message about the most frequently discussed topic.
+        /// Returns a human-readable message about the most frequently discussed topic.
         /// </summary>
         public string GetMostFrequentTopicMessage()
         {
             if (keywordCounts.Count == 0)
-            {
                 return "You haven't asked many questions yet.";
-            }
 
             var top = keywordCounts
                 .OrderByDescending(kv => kv.Value)
                 .First();
 
-            return "Your most frequent topic so far is '"
-                + top.Key + "' (" + top.Value + " times).";
+            return $"Your most frequent topic so far is '{top.Key}' ({top.Value} times).";
         }
 
         /// <summary>
-        /// When the same topic is asked multiple times, adds a small contextual prefix
-        /// to make the conversation feel more natural / remembered.
+        /// Returns a message suitable for name recall queries.
+        /// </summary>
+        public string GetNameRecallMessage()
+        {
+            return $"Your name is {UserName}. Have you forgotten?";
+        }
+
+        /// <summary>
+        /// Adds a contextual prefix when the same topic is asked multiple times.
         /// </summary>
         public string AddContextualPrefix(string keyword, string baseResponse, int count)
         {
             if (count <= 1)
-            {
                 return baseResponse;
-            }
 
-            string[] prefixes;
+            string prefix;
 
             if (count == 2)
             {
-                prefixes = new string[]
-                {
-                    "About " + keyword + " again: ",
-                    "Regarding " + keyword + ": "
-                };
+                prefix = $"About {keyword} again: ";
             }
             else if (count == 3)
             {
-                prefixes = new string[]
-                {
-                    "You seem quite interested in " + keyword + ". ",
-                    "Back to " + keyword + ": "
-                };
+                prefix = $"You seem quite interested in {keyword}. ";
             }
             else
             {
-                prefixes = new string[]
-                {
-                    "You've asked about " + keyword + " " + count + " times now. ",
-                    "Still curious about " + keyword + "? "
-                };
+                prefix = $"You've asked about {keyword} {count} times now. ";
             }
 
-            Random rnd = new Random();
-            int index = rnd.Next(prefixes.Length);   // ← correct integer indexing
-            return prefixes[index] + baseResponse;
+            return prefix + baseResponse;
         }
 
-        private static string Normalize(string s)
-        {
-            if (s == null) return "";
-            return s.ToLowerInvariant().Trim();
-        }
+        // ────────────────────────────────────────────────
+        // Persistence
+        // ────────────────────────────────────────────────
 
-        private void Load()
+        private void LoadFromFile()
         {
-            if (!File.Exists(STORAGE_FILE))
-            {
+            if (!File.Exists(StorageFileName))
                 return;
-            }
 
             try
             {
-                string[] lines = File.ReadAllLines(STORAGE_FILE);
-                foreach (string line in lines)
+                foreach (string line in File.ReadAllLines(StorageFileName))
                 {
-                    string[] parts = line.Split(new char[] { ':' }, 2);
-                    if (parts.Length == 2)
+                    var parts = line.Split(new[] { ':' }, 2);
+                    if (parts.Length == 2 && int.TryParse(parts[1], out int count))
                     {
-                        int cnt;
-                        if (int.TryParse(parts[1], out cnt))
-                        {
-                            keywordCounts[parts[0]] = cnt;
-                        }
+                        string key = parts[0].Trim().ToLowerInvariant();
+                        if (!string.IsNullOrEmpty(key))
+                            keywordCounts[key] = count;
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine("[Memory] Load failed: " + ex.Message);
+                Console.WriteLine($"[Memory] Load failed: {ex.Message}");
             }
         }
 
-        private void Save()
+        private void SaveToFile()
         {
             try
             {
-                var lines = new List<string>();
-                foreach (var kv in keywordCounts)
-                {
-                    lines.Add(kv.Key + ":" + kv.Value.ToString());
-                }
-                File.WriteAllLines(STORAGE_FILE, lines.ToArray());
+                var lines = keywordCounts
+                    .Select(kv => $"{kv.Key}:{kv.Value}")
+                    .ToArray();
+
+                File.WriteAllLines(StorageFileName, lines);
             }
             catch (Exception ex)
             {
-                Console.WriteLine("[Memory] Save failed: " + ex.Message);
+                Console.WriteLine($"[Memory] Save failed: {ex.Message}");
             }
+        }
+
+        private static string Normalize(string s)
+        {
+            return (s ?? "").Trim().ToLowerInvariant();
         }
     }
 }
