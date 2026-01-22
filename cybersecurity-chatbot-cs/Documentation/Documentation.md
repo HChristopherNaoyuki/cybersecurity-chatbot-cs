@@ -1,4 +1,4 @@
-﻿# Cybersecurity Awareness Chatbot (C# Console Application)
+﻿# Cybersecurity Chatbot: Documentation
 
 ## Table of Contents
 
